@@ -1,0 +1,10 @@
+{
+  "name": "impatient-programming",
+  "displayName": "Impatient Programming",
+  "description": "Skills for Impatient Programming (IMP), an AI-era successor to eXtreme Programming: executable Contracts, inhale and exhale pull requests, mutation-tested tests, blast-radius shipping, guardrails, regeneration drills, and a weekly team heartbeat. Based on Obie Fernandez's eXtreme Programming, Revisited.",
+  "version": "0.1.0",
+  "author": {
+    "name": "Victor Nascimento"
+  },
+  "skills": "./skills/"
+}
