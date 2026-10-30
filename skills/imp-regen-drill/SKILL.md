@@ -26,7 +26,7 @@ Install dependencies in the copy. Make two or three copies, so independent rebui
 
 ## 3. Regenerate
 
-Give each copy to a fresh subagent with only its path and this brief, using different models across copies when possible:
+Each rebuild needs an agent that starts with an empty context, because this conversation may contain the code being rebuilt. If your agent's subagents fork the conversation, as Codex subagents can, run a separate session in each copy instead, such as `codex exec` started in the copy's folder. Give each copy to a fresh subagent with only its path and this brief, using different models across copies when possible:
 
 > Rebuild the <component> component in this repository from contract/<component>.md, contract/README.md, docs/decisions/, and the interfaces it must satisfy. Do not access any other copy of this repository or any git remote. Make every contract test pass. Wherever the Contract is silent and you must choose, record the choice and the alternatives you considered in DRILL-NOTES.md.
 

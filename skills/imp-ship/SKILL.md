@@ -36,7 +36,7 @@ All required CI checks must be green, plus the contract check with `--strict`, t
 
 ## 3. Adversarial model review
 
-Launch a fresh reviewer subagent, on a different model from the author when possible. Give it only the diff, the Contract files touched, the relevant decision records, and the blast-radius output: never the author's reasoning or chat history. Brief it:
+Launch a reviewer subagent that starts with an empty context, on a different model from the author when possible. A subagent that forks the current conversation, as Codex subagents can, is not fresh: ask for one that starts empty, or run the review as a separate session, such as `codex exec`. Give it only the diff, the Contract files touched, the relevant decision records, and the blast-radius output: never the author's reasoning or chat history. Brief it:
 
 > Review this change to break it. Find every way it violates an obligation in the Contract, every obligation it should have added and didn't, every regression for existing callers, and every security, data, performance, and failure-mode risk. For each finding give file and line, a concrete scenario that fails, and a severity: blocker, should-fix, or nit. Default to suspicion. If you find nothing, list what you checked.
 

@@ -1,6 +1,6 @@
 # Impatient Programming skills
 
-Agent skills that make coding agents work the Impatient Programming way. Impatient Programming (IMP) is Obie Fernandez's AI-era successor to eXtreme Programming, set out in his essay [eXtreme Programming, Revisited](https://impatientprogramming.org/xp-revisited/). These skills turn the method into steps a coding agent follows and checks that run on every change.
+Agent skills that make coding agents in Cursor and Codex work the Impatient Programming way. Impatient Programming (IMP) is Obie Fernandez's AI-era successor to eXtreme Programming, set out in his essay [eXtreme Programming, Revisited](https://impatientprogramming.org/xp-revisited/). These skills turn the method into steps a coding agent follows and checks that run on every change.
 
 This is an independent adaptation, not affiliated with or endorsed by Obie Fernandez or ZAR. Read the essay for the method and the reasoning behind it.
 
@@ -68,21 +68,21 @@ Default gate: A human reviews code, Contract, and rollout; rehearse the rollback
 
 You need git, and Python 3.8 or later for the scripts. The GitHub CLI (`gh`) is optional; `imp-init` and `imp-ship` use it for labels and auto-merge. Mutation testing needs a tool for your stack; [tools.md](skills/imp-kill-matrix/tools.md) covers the common ones.
 
-From a clone of this repo, link the skills into Cursor:
+From a clone of this repo, link the skills:
 
 ```sh
 scripts/link-skills.sh
 ```
 
-This links each skill folder into `~/.cursor/skills`, so new chats pick up changes in the repo right away. Run it again after adding a skill. It never replaces a real folder with the same name. If you move or delete the repo, the links break.
+This links each skill folder into `~/.agents/skills`, which both Cursor and Codex read, so they load the skills straight from the repo. Run it again after adding a skill. It never replaces a real folder with the same name. If you move or delete the repo, the links break.
 
-Other agents that read the same skill format can use them too, for example Claude Code with `scripts/link-skills.sh ~/.claude/skills`. Only Cursor has been tested.
+Keep the links in one folder where you can. Cursor also reads `~/.cursor/skills`, `~/.claude/skills`, and `~/.codex/skills`, and depending on its version it may list a skill found in two of them twice. Claude Code reads `~/.claude/skills`, so link there for it: `scripts/link-skills.sh ~/.claude/skills`. The skills have been tested in Cursor, not yet in Codex or Claude Code.
 
 The repo is also a Cursor plugin (`.cursor-plugin/plugin.json`), so it can be shared later through a team or public Cursor marketplace. If you install it that way, remove the links first, or every skill will be loaded twice.
 
 ## Use
 
-1. Open a project in Cursor and run `/imp-init`. It reads the repo, asks one round of questions (the system's name and metaphor, where the team posts updates, the merge policy, how a merge reaches production, and who the customer is), shows its plan, and writes only what's missing.
+1. Open a project and run `/imp-init` in Cursor, or `$imp-init` in Codex. It reads the repo, asks one round of questions (the system's name and metaphor, where the team posts updates, the merge policy, how a merge reaches production, and who the customer is), shows its plan, and writes only what's missing.
 2. Then work as usual. The agent follows the cycle by itself. These prompts start each part of it:
    - "Post this week's story."
    - "Give me three options for <decision>." or "Spike <A> and <B>."
@@ -92,9 +92,19 @@ The repo is also a Cursor plugin (`.cursor-plugin/plugin.json`), so it can be sh
    - "This is broken in production: <what happened>."
    - "Guardrail this." after an agent gets something wrong.
    - "Run the kill matrix on <module>." and "Run a regeneration drill on <component>." every so often.
-3. To run a skill directly, type `/` and its name, such as `/imp-ship`.
+3. To run a skill directly, type `/` and its name in Cursor, such as `/imp-ship`, or `$imp-ship` in Codex, where `/skills` lists them.
 
 You make the product decisions, confirm or reject the obligations the agent proposes, and read the Contract diff first when reviewing a pull request. The agent keeps the Contract current, writes and prunes tests, runs the scripts, and drafts the updates.
+
+### In Codex
+
+The skills and scripts are the same in Codex, but a few things behave differently:
+
+- Codex reads every `AGENTS.md` from the repo root down to the folder you start it in, so the section `imp-init` writes applies as is.
+- Restart Codex after editing a skill. It doesn't notice changes made through the links while it's running.
+- The adversarial review in `imp-ship` and the rebuilds in `imp-regen-drill` need agents that start with no conversation history. A Codex subagent can start as a fork of the current conversation, so the skills ask for an empty one or a separate `codex exec` session. Codex subagents also use the same model unless you ask for another, and all of Codex's models come from OpenAI, so the review is less independent than one by another vendor's model.
+- By default Codex asks before writing outside the project folder or using the network. Expect approval prompts for `gh` commands, pushes, and spikes, which create worktrees next to the repo.
+- To post the daily brief on a schedule, use a CI cron job rather than a Cursor Automation.
 
 ### What `imp-init` adds to a repo
 
@@ -135,7 +145,7 @@ Green merges itself only as far as the repo's policy allows. The agent never byp
 ```text
 .cursor-plugin/plugin.json   plugin manifest
 skills/<name>/SKILL.md       one folder per skill, with its templates and scripts
-scripts/link-skills.sh       links the skills into ~/.cursor/skills, or another folder
+scripts/link-skills.sh       links the skills into ~/.agents/skills, or another folder
 ```
 
 ## Credits

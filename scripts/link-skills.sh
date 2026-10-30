@@ -1,10 +1,10 @@
 #!/bin/sh
-# Usage: scripts/link-skills.sh [skills-dir]   (default: ~/.cursor/skills)
-# Links every skill in skills/ into skills-dir, so the agent loads them from this repo.
+# Usage: scripts/link-skills.sh [skills-dir]   (default: ~/.agents/skills, read by Cursor and Codex)
+# Links every skill in skills/ into skills-dir, so agents load them from this repo.
 set -eu
 
 repo=$(cd "$(dirname "$0")/.." && pwd)
-target=${1:-"$HOME/.cursor/skills"}
+target=${1:-"$HOME/.agents/skills"}
 mkdir -p "$target"
 
 for skill in "$repo"/skills/*/; do
