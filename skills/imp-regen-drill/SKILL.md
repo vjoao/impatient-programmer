@@ -35,7 +35,7 @@ Each rebuild needs an agent that starts with an empty context, because this conv
 In each copy:
 
 - Run the contract tests and the full suite, including callers' tests.
-- Run the kill matrix against the regenerated code using only the contract tests (`imp-kill-matrix`). Compare that mutation score with the old suite's score on the original code.
+- Optionally run a bounded, scoped mutation probe against the regenerated code using only the Contract tests (`imp-kill-matrix`). Compare its score with the old suite's score only as diagnostic evidence; a timed-out, fail-first, or partial report is incomplete, and a complete matrix belongs in a separate manual or scheduled non-blocking audit.
 - Run the same inputs (scripted scenarios, recorded requests, or property tests) through every copy and the original. Every divergence marks a place where the Contract is silent.
 
 ## 5. Harvest

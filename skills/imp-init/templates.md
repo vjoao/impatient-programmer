@@ -14,7 +14,7 @@ This repo follows Impatient Programming (IMP). Agents: load the `impatient-progr
 | Contract | `contract/` |
 | Contract tests | `<test folder>/contract/`; test names carry obligation IDs |
 | Test command | `<command>` |
-| Mutation command | `<command>`, report at `<path>` |
+| Mutation policy | Optional targeted probes with a time budget; full matrix only in non-blocking manual/scheduled audits (see `imp-kill-matrix`) |
 | Decision records | `docs/decisions/` |
 | Guardrails log | `docs/guardrails.md` |
 | Merge policy | IMP default (see `imp-ship`), or `<stricter policy, and why>` |
@@ -44,7 +44,7 @@ This repo follows Impatient Programming (IMP). Agents: load the `impatient-progr
 - Exhale:
 
 ## Evidence
-<!-- Checks, contract check, kill matrix (score, tests deleted), screenshots or production links. -->
+<!-- Required checks and behavior assertions; optional mutation probe/audit findings (include scope and completeness); screenshots or production links. -->
 
 ## Blast radius
 <!-- low, medium, high, or catastrophic, with reasons. Rollout, watch signals, rollback. -->
@@ -61,7 +61,7 @@ Date: <YYYY-MM-DD> · Status: accepted · Decided by: <names>
 <Why the team is adopting IMP now.>
 
 ## Decision
-We work the Impatient Programming way: Contract-first pull requests that breathe, tests that earn their place through mutation testing, guardrails so no agent repeats a mistake, green merges itself within our blast-radius policy, every merge is released, and a weekly story and showcase. Our repo facts live in AGENTS.md.
+We work the Impatient Programming way: Contract-first pull requests that breathe, tests that exercise meaningful behavior, optional targeted mutation diagnostics and non-blocking full-matrix audits, guardrails so no agent repeats a mistake, green merges itself within our blast-radius policy, every merge is released, and a weekly story and showcase. Our repo facts live in AGENTS.md.
 
 ## Consequences
 - The Contract in `contract/` is the main review surface.
@@ -102,8 +102,7 @@ jobs:
             python3 scripts/imp/blast_radius.py --base "origin/${{ github.base_ref }}"
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
-      - name: Mutation gate
-        run: |
-          <mutation command, scoped to the changed files>
-          python3 scripts/imp/kill_matrix.py <report> --min-score <team threshold>
+# No mutation gate in required PR CI. A separate workflow_dispatch or scheduled
+# audit may run scoped mutations, upload its report, and invoke kill_matrix.py
+# for analysis without blocking ordinary merges.
 ````

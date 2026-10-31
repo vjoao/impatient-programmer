@@ -1,48 +1,53 @@
 ---
 name: imp-kill-matrix
-description: Makes every automated test earn its place. Runs mutation testing, builds a kill matrix of which tests kill which mutants, deletes tests that catch nothing no other test catches, and turns surviving mutants into Contract obligations or deleted code. Use when pruning or auditing a test suite, when agents generated many tests, when setting up mutation testing or a mutation gate in CI (Stryker, PIT, mutmut, cargo-mutants, and others), or when the user mentions mutation testing, mutants, kill matrix, mutation score, or redundant tests.
+description: Audits whether tests detect injected defects. Uses fast, scoped mutation probes when useful and a full kill matrix only on explicit request or in non-blocking scheduled audits. Helps interpret surviving mutants without making mutation score or test deletion a mandatory PR gate. Use when assessing test quality, pruning tests, setting up mutation testing (Stryker, PIT, mutmut, cargo-mutants), or investigating mutants, kill matrices, and mutation scores.
 ---
 
-# Kill matrix: every test earns its place
+# Kill matrix: diagnostic evidence, not a release gate
 
-Agents will happily write thousands of tests, and every one burns CPU on every run. A test stays only if it catches something no other test catches. Mutation testing measures that: each mutant is a small deliberate bug, and a test kills it by failing.
+Mutation testing deliberately changes code to see whether assertions detect the change. It can reveal weak tests, but it multiplies test runs; a *complete* kill matrix (every test that kills every mutant) is especially expensive. Optimize for a short feedback loop. Mutation testing is **not required** to finish an ordinary PR.
 
-## 1. Set up the tool
+## 1. The mandatory quality bar
 
-Pick the tool for the stack and configure it to record every killing test, not only the first. See [tools.md](tools.md). From a partial matrix, a redundant test and a test that merely ran second look the same, so never delete tests based on one.
+Before considering mutation testing, pass the repo's **required** type checks, lint, fast unit/integration tests, executable Contract checks, and security checks as applicable. Test observable behavior, boundaries, failures, and invariants. Every changed obligation should have a meaningful assertion. Use the test-to-obligation mapping from `imp-contract` to identify gaps.
 
-## 2. Scope the run
+Do not use line coverage, mutation score, or a kill matrix as a substitute for behavior-oriented tests.
 
-- In a PR, mutate only the changed source files.
-- For an audit or a regeneration drill, mutate one component at a time.
-- Whole-codebase runs belong in a scheduled job, not the PR loop.
+## 2. Optional targeted probes (PR or local)
 
-## 3. Build the matrix
+Only when the risk justifies the cost:
+
+1. Mutate **changed business logic**, not generated output, trivial glue, or the whole tree.
+2. Select tests that cover each mutant (`coverageAnalysis: perTest` in StrykerJS, when supported). Run mutants in parallel within the CI runner's capacity.
+3. **Bail as soon as any test kills a mutant** (`disableBail: false` in StrykerJS). No full matrix is needed to establish detection.
+4. Use a small deterministic mutant sample and a declared time budget (suggested additional 60 seconds); record how many mutants were actually executed. Sampling is not a full mutation score.
+5. If the budget expires, report the probe **incomplete**, not passed. An optional probe must not turn into a mandatory, hanging gate.
+
+Re-run or strengthen tests for meaningful surviving mutants. See [tools.md](tools.md) for stack-specific settings. Prefer an explicitly requested deeper audit when diagnostics need more time.
+
+## 3. Full audit: opt-in or scheduled and non-blocking
+
+For a component audit, regression investigation, or a separate scheduled/manual CI job:
+
+- Run a broader but bounded mutation set. Persist incremental/cache results where the tool supports it.
+- **Only when a complete kill matrix is explicitly needed**, record *all* killing tests (StrykerJS `disableBail: true`, PIT `fullMutationMatrix=true`). Expect higher cost.
+- Analyze the report:
 
 ```bash
 python3 <this-skill-dir>/scripts/kill_matrix.py <report> --contract-dir contract
+# Use --full-matrix ONLY after verifying that all killing tests were recorded.
 ```
 
-It reads mutation-testing-report-schema JSON (StrykerJS, Stryker.NET), PIT `mutations.xml`, or a CSV with `mutant,status,killed_by` columns (test names separated by `|`). It reports:
+The analyzer accepts mutation-testing-report-schema JSON, PIT XML, or CSV. Reports that cannot prove complete kill attribution withhold test-pruning diagnostics. A full-matrix audit may identify candidates for review; **never automatically delete tests solely because they kill no unique mutant**. Tests also protect obligation boundaries, integration behavior, timing, safety, and failure modes that mutation operators may not express.
 
-- the mutation score, and the survivors with location and mutator;
-- **redundant** tests: every mutant they kill is also killed by a test that stays;
-- **zero-kill** tests: they ran against mutated code and killed nothing;
-- **protected** tests: the only test citing an obligation ID, with no unique kill;
-- the retained set, in which each test kills at least one mutant no other retained test kills.
+## 4. Interpret survivors
 
-It withholds deletion advice when the report looks like the tool stopped at the first killing test. `--json` gives machine output, and `--min-score N` exits non-zero below N percent, for CI.
+For each meaningful survivor: (a) strengthen an assertion or add a missing Contract obligation; (b) remove truly unused code in the exhale; or (c) document why a mutant is equivalent or irrelevant. Consider uncovered mutants separately. Do not chase a numeric score or delete useful tests just to improve it.
 
-## 4. Act on it
+## 5. CI policy
 
-- **Redundant and zero-kill tests:** delete them in the same PR, and give the count in the PR's Evidence section.
-- **Protected tests:** keep them, because the obligation needs an executable form. Strengthen each one until it kills mutants in the code that implements its obligation. Mutation tools can't express timing, ordering, or failure obligations, so for those, prove the test by breaking the obligation on purpose (add a delay, drop a retry) and watching it fail.
-- **Survivors:** each one is one of three things.
-  1. A missing obligation: a caller would notice the change. Write the obligation (`imp-contract`) and a test that kills the mutant.
-  2. Unneeded code: nothing anyone relies on changes. Delete the code as part of the exhale.
-  3. An equivalent mutant: the change can't alter behavior. Ignore it, or exclude it with the tool's ignore mechanism and a reason.
-- Re-run until the changed code has no unexplained survivors.
+- **Blocking PR checks:** fast tests, Contract, lint/typecheck/security as appropriate, and the existing repo-required checks.
+- **Optional PR diagnostics:** targeted mutation probes with an explicit budget, never a full kill matrix.
+- **Scheduled/manual audits:** full mutations and kill-matrix analysis as **non-blocking** reports; investigate findings in follow-up work.
 
-## 5. Keep it enforced
-
-Add a mutation gate for changed files to CI (`--min-score`, or the tool's own threshold), so the rule runs in a machine instead of depending on anyone remembering it.
+When updating an existing repository, deliberately remove mutation thresholds or full-matrix jobs from **required** checks; adjust branch protection through the repo's normal approval process. Never bypass an existing required check to merge. Record this choice in a decision record and the repo's `AGENTS.md`.

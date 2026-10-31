@@ -32,7 +32,7 @@ The script's level is a floor, based on paths, added lines (possible secrets, de
 
 ## 2. Run the automated checks
 
-All required CI checks must be green, plus the contract check with `--strict`, the mutation gate on changed code (`imp-kill-matrix`), linters, type checks, and security scans. Never skip a check, re-run it until it happens to pass, or quarantine a test to get past it. A flaky test is a defect: fix it, or delete it, because it isn't earning its place.
+All required CI checks must be green, including the Contract check with `--strict`, relevant fast tests, lint, type checks, and security scans. Mutation testing (`imp-kill-matrix`) is an optional diagnostic, **not** a default blocking PR gate or a requirement for a complete kill matrix. If the repo currently marks a mutation job as required, change that policy through the normal approval process before merging; never bypass a required check. Never rerun a flaky check merely until it passes or quarantine tests to get a green merge; fix instability and preserve coverage of important behavior.
 
 ## 3. Adversarial model review
 

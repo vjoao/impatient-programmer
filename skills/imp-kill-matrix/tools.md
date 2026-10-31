@@ -1,67 +1,48 @@
-# Mutation testing tools
+# Mutation testing tools: fast default, complete matrix on demand
 
-These are the settings that matter for a complete kill matrix. Check flags against the tool's current documentation before relying on them.
+Verify flags against the installed tool version. There is no universal mutation-testing CI gate. Start with coverage-directed, fail-fast, changed-code probes only when useful. Keep exhaustive runs outside blocking PR CI.
 
-## JavaScript and TypeScript: StrykerJS
+## JavaScript / TypeScript: StrykerJS
 
-```bash
-npm i -D @stryker-mutator/core @stryker-mutator/<runner>   # jest-runner, vitest-runner, mocha-runner, karma-runner
-```
-
-`stryker.config.json`:
+Install the core and the test runner for the project (Vitest, Jest, etc.). Example `stryker.config.json` for **diagnostic** runs:
 
 ```json
 {
-  "testRunner": "<runner>",
+  "testRunner": "vitest",
   "coverageAnalysis": "perTest",
-  "disableBail": true,
+  "disableBail": false,
+  "incremental": true,
   "reporters": ["json", "clear-text", "progress"]
 }
 ```
 
-- `perTest` records which tests cover each mutant; `disableBail` records every killing test, not just the first.
-- Scope a PR with `npx stryker run --mutate "<changed files>"`. `--incremental` reuses results for unchanged code.
-- Report: `reports/mutation/mutation.json`.
+- `coverageAnalysis: perTest` restricts each mutant to the tests that cover it; `disableBail: false` stops executing additional tests once one kills the mutant. Neither supplies a complete kill matrix.
+- Scope `mutate` to changed, meaningful source paths; a PR-wide or whole-tree mutation run is not a default check.
+- Persist Stryker's incremental report/cache between CI jobs **if** using incremental mode; otherwise every ephemeral runner starts cold. Cache invalidation and tool/version changes must be respected.
+- Tune concurrency to available CPU and memory; too many test workers can make CI slower. Measure initial dry-run/setup time separately from mutation execution time.
+- For a **manual full-matrix audit only**, enable `disableBail: true`, keep `coverageAnalysis: perTest`, and use the JSON report at `reports/mutation/mutation.json`. Tell `kill_matrix.py` `--full-matrix` only after verifying completeness.
+- Investigate repeated test-runner restarts, static mutants, costly setup hooks, worker contention, and timeouts before raising CI timeouts.
 
-## C# and .NET: Stryker.NET
+## C# / .NET: Stryker.NET
 
-```bash
-dotnet tool install -g dotnet-stryker
-dotnet stryker --reporter json --since:<target-branch>
-```
+Scope the run with the tool's supported changed-file/since mechanism. Keep bail enabled for diagnostic runs. Enable `disable-bail` only for a deliberate complete-matrix audit and verify the JSON reporting format before analyzing it.
 
-- Turn on `disable-bail` in `stryker-config.json` to record every killing test.
-- Report: `StrykerOutput/<timestamp>/reports/mutation-report.json`.
+## Java / Kotlin on the JVM: PIT
 
-## Java and Kotlin on the JVM: PIT
-
-Maven:
-
-```bash
-mvn org.pitest:pitest-maven:mutationCoverage \
-  -DoutputFormats=XML,HTML -DfullMutationMatrix=true -DtargetClasses='com.example.quote.*'
-```
-
-- `fullMutationMatrix` requires XML output, and records `killingTests` and `succeedingTests` for every mutant.
-- JUnit 5 needs the `pitest-junit5-plugin` dependency.
-- Gradle: the `info.solidsoft.pitest` plugin with `outputFormats = ['XML']` and `fullMutationMatrix = true`. Android JVM unit tests: the `pl.droidsonroids.pitest` plugin.
-- Report: `target/pit-reports/mutations.xml` (Maven) or `build/reports/pitest/mutations.xml` (Gradle).
+Run mutation testing on a limited `targetClasses` set, without `fullMutationMatrix`, for fast targeted diagnostics. For a scheduled/manual full audit, enable `fullMutationMatrix=true` with XML output and the appropriate test framework plugin (JUnit 5 needs `pitest-junit5-plugin`). A full mutation matrix is not suitable for routine PR gating.
 
 ## Tools without per-test kill data
 
-| Stack | Tool | Run |
+| Stack | Tool | Targeted run |
 |---|---|---|
-| Python | mutmut | `mutmut run`, then `mutmut results`; `mutmut show <mutant>` prints the mutant's diff |
-| Rust | cargo-mutants | `cargo mutants --in-diff <diff file>`; mutant diffs land in `mutants.out/` |
+| Python | mutmut | `mutmut run` on the relevant scope |
+| Rust | cargo-mutants | `cargo mutants --in-diff <diff file>` |
 | Go | gremlins | `gremlins unleash <package>` |
-| Ruby | mutant | `bundle exec mutant run --use rspec '<Namespace>*'`; check its license for commercial use |
-| Swift | Muter | `muter init`, then `muter` |
+| Ruby | mutant | `bundle exec mutant run --use rspec '<Namespace>*'` (check licensing) |
+| Swift | Muter | `muter` with a limited scope |
 
-These report which mutants survived, which is enough for the mutation score, the survivors, and a CI gate. To find redundant tests, build the full matrix yourself, scoped to the PR's mutants:
+These can report survivors and other diagnostic results without proving which individual tests are redundant.
 
-1. Export each mutant as a patch.
-2. For each patch: apply it, run the whole suite with a JUnit XML reporter, record the failing tests, and revert.
-3. Write one CSV row per mutant: `mutant,status,killed_by` (`killed` or `survived`, failing tests joined by `|`). Add a `covered_by` column if coverage is known.
-4. Run `kill_matrix.py` on the CSV with `--full-matrix`.
+When a **complete** CSV kill matrix is explicitly requested, export a mutant patch, apply it, run all relevant tests with machine-readable results, collect *every* failing test, and revert the patch for each mutant. Write `mutant,status,killed_by` rows (test names separated by `|`), then run `kill_matrix.py <report> --full-matrix`. This is intentionally expensive, non-blocking audit work.
 
-This costs one suite run per mutant, the same as a mutation run without bail.
+A partial matrix **cannot justify deleting tests**. Even a complete matrix is evidence for human/agent review, not an automatic deletion rule.

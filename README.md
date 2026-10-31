@@ -6,11 +6,11 @@ This is an independent adaptation, not affiliated with or endorsed by Obie Ferna
 
 ## Impatient Programming in brief
 
-XP took practices that worked and turned them up as far as they would go. IMP does the same for teams whose programmers pair with coding agents all day. Speed is a core value, and what keeps it honest is rigor that runs in machines: executable Contracts, mutation gates, merge checks, and guardrails.
+XP took practices that worked and turned them up as far as they would go. IMP does the same for teams whose programmers pair with coding agents all day. Speed is a core value, and what keeps it honest is rigor that runs in machines: executable Contracts, fast behavioral tests, merge checks, and guardrails. Mutation testing is optional diagnostic evidence, not a required PR gate.
 
 - **The Contract.** Each repo keeps a versioned description of what the software must do, written as numbered obligations, functional and non-functional. It is the main focus of review, and it should be complete enough to rebuild any component from it.
 - **Every pull request breathes.** On the inhale, the agent explores and builds freely, writing each obligation into the Contract as it is agreed. On the exhale, in the same pull request, it folds the new code into what already exists, deletes what isn't needed, and completes the Contract. No technical debt survives the exhale.
-- **Tests earn their place.** Mutation testing shows which tests catch which injected bugs. A test stays only if it catches something no other test catches.
+- **Tests earn their place.** Tests assert meaningful observable behavior, boundaries, and failure modes. Optional targeted mutation probes can expose weak assertions; complete kill matrices are reserved for non-blocking audits. Never delete tests based only on mutation-score or kill-matrix results.
 - **Green merges itself.** When the checks and an adversarial review by a second model pass, a pull request merges and is released without waiting for a person, as far as the team's policy allows for its blast radius (how much could go wrong). Every merge is released, behind a canary or flag when needed, with a known rollback.
 - **No mistake twice.** A mistake an agent made becomes a guardrail: a type, lint rule, test, check, or hook that stops it from happening again.
 - **A weekly heartbeat instead of iterations.** Work flows pull request by pull request. Each week starts with posted success criteria, a daily public brief says what people and their agents did, and a weekly showcase counts only finished work in production. Long projects report whether they are still uphill, turning unknowns into knowns, or over the top with a forecast someone believes.
@@ -31,7 +31,7 @@ XP took practices that worked and turned them up as far as they would go. IMP do
 | `imp-spike` | Before production code: three real options, named hypotheses, parallel throwaway spikes and bakeoffs, prototypes for the customer, and a decision record. |
 | `imp-contract` | Writes and checks the Contract: obligation format, permanent IDs, templates, a checklist of what to ask, and tests that carry obligation IDs. |
 | `imp-breathe` | The inhale and exhale of each pull request, with the exhale checklist and the PR description sections. |
-| `imp-kill-matrix` | Sets up mutation testing for the stack, builds the kill matrix, and says which tests to delete or strengthen and what each surviving mutant means. |
+| `imp-kill-matrix` | Configures scoped, fail-fast mutation diagnostics, optional complete-matrix audits, and interpretation of survivors; never makes test deletion an automatic rule. |
 | `imp-ship` | Sizes the blast radius, runs checks and an adversarial review by a different model, applies the merge policy, and handles rollout, watching, and rollback. |
 | `imp-bugfix` | Decides whether work is a fix (a defect live in production) or a refinement. For a fix, adds the missing obligation and a failing test before changing code. |
 | `imp-guardrail` | Turns a mistake into the strongest affordable automated check, proves it catches the mistake, and logs it. |
@@ -43,7 +43,7 @@ XP took practices that worked and turned them up as far as they would go. IMP do
 The scripts are standard-library Python 3.8 or later, with nothing to install. They live inside the skills, and `imp-init` copies them into a repo's `scripts/imp/` folder so CI doesn't depend on anyone's skill install.
 
 - **`check_contract.py`** (in `imp-contract`) checks obligation format and unique IDs, finds the tests that cite each obligation, and reports obligations no test covers. With `--strict` it fails on them.
-- **`kill_matrix.py`** (in `imp-kill-matrix`) reads a Stryker JSON, PIT XML, or CSV mutation report. It reports the mutation score, surviving mutants, redundant tests, tests that kill nothing, and tests it protects because they are the only test of an obligation. When the report lists only the first test to kill each mutant, it withholds deletion advice, because acting on it would delete good tests.
+- **`kill_matrix.py`** (in `imp-kill-matrix`) reads a Stryker JSON, PIT XML, or CSV mutation report. It reports mutation score and survivors. Test-pruning candidates are shown **only when a complete kill matrix is verified**; they require review of distinct behavior and obligations before any deletion. Partial reports cannot establish test redundancy.
 - **`blast_radius.py`** (in `imp-ship`) rates the current change low, medium, high, or catastrophic from the paths it touches, what it adds (secrets, destructive migrations), its size, and the obligations it changes or retires. It prints the review gate that level requires.
 
 ```console
@@ -91,7 +91,7 @@ The repo is also a Cursor plugin (`.cursor-plugin/plugin.json`), so it can be sh
    - "Write today's brief." and, at the end of the week, "Prepare the showcase."
    - "This is broken in production: <what happened>."
    - "Guardrail this." after an agent gets something wrong.
-   - "Run the kill matrix on <module>." and "Run a regeneration drill on <component>." every so often.
+   - "Run a bounded mutation diagnostic on <module>." and "Run a regeneration drill on <component>." every so often; reserve complete kill matrices for explicit non-blocking audits.
 3. To run a skill directly, type `/` and its name in Cursor, such as `/imp-ship`, or `$imp-ship` in Codex, where `/skills` lists them.
 
 You make the product decisions, confirm or reject the obligations the agent proposes, and read the Contract diff first when reviewing a pull request. The agent keeps the Contract current, writes and prunes tests, runs the scripts, and drafts the updates.
@@ -117,7 +117,7 @@ docs/guardrails.md                  every mistake made once, and what now preven
 scripts/imp/                        copies of the three scripts, so CI doesn't need the skills
 ```
 
-It also adds a GitHub Actions job that checks the Contract, reports the blast radius, and runs a mutation gate. Settings that differ from the defaults, such as the Contract folder, the merge policy, or risky paths, go in the repo's `AGENTS.md` section rather than in the skills.
+It also adds a GitHub Actions job that checks the Contract and reports the blast radius. Mutation probes are optional and time-budgeted; full mutation audits run on demand or on a schedule without blocking PR merges. Settings that differ from the defaults, such as the Contract folder, the merge policy, or risky paths, go in the repo's `AGENTS.md` section rather than in the skills.
 
 An obligation in the Contract looks like this:
 
