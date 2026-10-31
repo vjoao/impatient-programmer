@@ -35,7 +35,7 @@ Exhale
 - [ ] Convention: the code follows the repo's existing patterns; no new configuration where a convention would do.
 - [ ] Contract complete: every behavior added or changed is an obligation; the obligation checklist was walked for each touched component.
 - [ ] Contract executable: obligations have tests through the public boundary; check_contract passes with --strict.
-- [ ] Tests earn their place: kill matrix on the changed code (imp-kill-matrix); redundant tests deleted; each survivor became an obligation or deleted code.
+- [ ] Tests earn their place: review assertions against changed obligations, edge cases, and failure modes; remove duplicate tests only after checking their distinct behavior coverage. Targeted mutation probes are optional; no PR kill-matrix or mutation-score gate (see imp-kill-matrix).
 - [ ] Stranger's read: the diff reads as if the final design had been the plan all along.
 ```
 

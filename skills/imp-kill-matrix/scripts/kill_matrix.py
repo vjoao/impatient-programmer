@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Build a kill matrix from a mutation-testing report and find tests that don't earn their place.
 
-A test earns its place when it kills a mutant that no other kept test kills.
+A complete matrix can identify possible test overlap. Never delete tests solely from mutation results.
 
 Reports, detected automatically:
   * mutation-testing-report-schema JSON, as written by StrykerJS and Stryker.NET:
@@ -14,9 +14,9 @@ Usage:
   python3 kill_matrix.py REPORT [--contract-dir contract] [--full-matrix]
                          [--min-score N] [--max-list N] [--json]
 
-Deletion advice is withheld when the report looks like the tool stopped at the first
-killing test, because then a test that happened to run second looks useless. Pass
---full-matrix when you know every killing test was recorded.
+Pruning diagnostics are withheld unless full kill attribution is verified. Pass
+--full-matrix only when you have verified every killing test was recorded.
+Even then, review obligations and unique behavior before removing a test.
 
 Exit status is 1 when --min-score is given and the mutation score is below it, 2 when
 the report can't be read, and 0 otherwise.
@@ -83,15 +83,16 @@ def load_stryker(data):
 
 
 def load_pit(root):
-    mutants, tests, complete = [], {}, False
+    mutants, tests, complete = [], {}, True
     for index, node in enumerate(root.iter("mutation")):
         def text(tag):
             return (node.findtext(tag) or "").strip()
         if node.find("killingTests") is not None:
-            complete = True
             killers = split_tests(node.findtext("killingTests"))
         else:
             killers = split_tests(node.findtext("killingTest"))
+            if normalize_status(node.get("status")) == "killed":
+                complete = False
         succeeding = node.find("succeedingTests")
         covered = None
         if succeeding is not None:
@@ -206,23 +207,18 @@ def analyse(mutants, tests, complete, obligation_keys, trust_matrix):
         tests.setdefault(test, {"name": test, "file": None})
 
     warnings = []
-    killed_with_killers = [m for m in mutants if m["status"] == "killed" and m["killed_by"]]
-    if complete is None and len(killed_with_killers) >= 10 and len(kills) > 1:
-        if not any(len(m["killed_by"]) > 1 for m in killed_with_killers):
-            complete = False
-    if complete is False and not trust_matrix:
+    if complete is not True and not trust_matrix:
         warnings.append(
-            "Every killed mutant lists only its first killing test, so a test that ran second "
-            "looks useless. Re-run with the full matrix (StrykerJS disableBail, Stryker.NET "
-            "disable-bail, PIT fullMutationMatrix=true), or pass --full-matrix if it already "
-            "was. Deletion advice withheld.")
+            "Complete kill attribution has not been verified. A fail-first or partial report "
+            "cannot identify redundant tests. Re-run an explicit full-matrix audit, and use "
+            "--full-matrix only if every killing test was recorded. Pruning diagnostics withheld.")
     if unattributed:
         warnings.append(
             "{} killed mutants don't say which test killed them; enable per-test coverage "
             "(Stryker coverageAnalysis: perTest).".format(unattributed))
     if not kills and counts["killed"]:
         warnings.append("The report has no killing-test data at all. Deletion advice withheld.")
-    advice = bool(kills) and (complete is not False or trust_matrix)
+    advice = bool(kills) and (complete is True or trust_matrix)
 
     find = obligation_finder(obligation_keys)
     carries = {t: find(tests[t]["name"]) | find(t) for t in tests}
@@ -344,9 +340,9 @@ def print_text(result, source, limit):
                lambda s: "{}  {}  {}  {}".format(s["location"], s["mutator"], s["status"],
                                                  s["description"]).rstrip())
     print_list("Redundant tests ({}): every mutant they kill is killed by a retained test. "
-               "Delete them.".format(len(result["redundant"])), result["redundant"], limit,
+               "Review distinct behavior before removal.".format(len(result["redundant"])), result["redundant"], limit,
                lambda i: "{}  kills {}".format(label(i), i["kills"]))
-    print_list("Zero-kill tests ({}): they run mutated code and kill nothing. Delete them, or "
+    print_list("Zero-kill tests ({}): they run mutated code and kill nothing. Review them or "
                "make them assert something.".format(len(result["zero_kill"])),
                result["zero_kill"], limit, label)
     print_list("Protected tests ({}): the only tests citing an obligation, with no unique kill. "
@@ -366,7 +362,7 @@ def main(argv=None):
     parser.add_argument("--contract-dir", default="contract",
                         help="IMP Contract folder, to protect the last test of each obligation")
     parser.add_argument("--full-matrix", action="store_true",
-                        help="trust that the report records every killing test")
+                        help="assert verified complete kill attribution (for manual audits only)")
     parser.add_argument("--min-score", type=float, metavar="N",
                         help="exit 1 when the mutation score is below N percent")
     parser.add_argument("--max-list", type=int, default=50, metavar="N",

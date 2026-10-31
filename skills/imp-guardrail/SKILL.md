@@ -19,7 +19,7 @@ Work down this ladder and stop at the first practical rung:
 |---|---|---|
 | 1. Make it impossible | Types, API shape, schemas, generators | A `Money` type in integer minor units; delete the unsafe helper; a database constraint; code generated from the schema |
 | 2. Fail the build | Lint rules, static analysis, architecture tests | `no-restricted-imports`, a Semgrep or ast-grep rule, SwiftLint `custom_rules`, detekt, RuboCop, ArchUnit, dependency-cruiser |
-| 3. Fail a test | A Contract obligation and its test, a property test, the mutation gate | An obligation that pins the invariant (`imp-contract`) |
+| 3. Fail a test | A Contract obligation and its test, a property test, an optional mutation probe | An obligation that pins the invariant (`imp-contract`) |
 | 4. Fail the merge | A CI check, a PR check, CODEOWNERS | A CI script that rejects the pattern; required owners for `contract/` |
 | 5. Catch it at agent time | Agent hooks, skills | A hook that runs the linter after every edit or blocks a dangerous command; a fix to the skill that led the agent astray |
 | 6. Write it down | A line in AGENTS.md or an agent rule | Last resort, for judgment no machine can check; note what would mechanize it |
